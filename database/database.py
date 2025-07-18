@@ -16,6 +16,10 @@ class Database:
     def __init__(self, db_path: str = None):
         self.db_path = db_path or DATABASE_PATH
         
+    async def _get_connection(self):
+        """Получение соединения с базой данных"""
+        return aiosqlite.connect(self.db_path)
+        
     async def init_database(self):
         """Инициализация базы данных"""
         async with aiosqlite.connect(self.db_path) as db:

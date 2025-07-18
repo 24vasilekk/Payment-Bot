@@ -294,7 +294,7 @@ class TelegramService:
             return None
 
 
-# Глобальный экземпляр сервиса (будет инициализирован в main.py)
+# Глобальный экземпляр сервиса
 telegram_service = None
 
 def init_telegram_service(bot: Bot):

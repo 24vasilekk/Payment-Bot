@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from aiohttp import web
 from aiohttp.web import Request, Response
 import json
@@ -147,7 +148,6 @@ async def start_webhook_server():
 
 # Для запуска сервера отдельно
 if __name__ == "__main__":
-    import asyncio
     from utils.logger import setup_logging
     from config.settings import LOG_LEVEL, LOG_DIR
     

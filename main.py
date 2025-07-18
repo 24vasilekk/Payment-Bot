@@ -20,6 +20,7 @@ from database.database import init_database
 from bot.handlers import register_all_handlers
 from tasks.scheduler import start_scheduler
 from webhook.server import start_webhook_server
+from services.telegram_service import init_telegram_service
 
 
 async def main():
@@ -39,6 +40,10 @@ async def main():
         # Создание бота и диспетчера
         bot = Bot(token=TELEGRAM_BOT_TOKEN)
         dp = Dispatcher(storage=MemoryStorage())
+        
+        # Инициализация telegram_service
+        init_telegram_service(bot)
+        logger.info("✅ Telegram сервис инициализирован")
         
         # Регистрация обработчиков
         register_all_handlers(dp)
