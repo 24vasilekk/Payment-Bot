@@ -40,11 +40,9 @@ LOG_DIR = BASE_DIR / 'logs'
 LOG_DIR.mkdir(exist_ok=True)
 DATABASE_PATH.parent.mkdir(exist_ok=True)
 
-# Проверка обязательных переменных
+# Проверка обязательных переменных (временно только Telegram)
 required_vars = [
-    'TELEGRAM_BOT_TOKEN',
-    'YOOKASSA_SHOP_ID', 
-    'YOOKASSA_SECRET_KEY'
+    'TELEGRAM_BOT_TOKEN'
 ]
 
 missing_vars = [var for var in required_vars if not os.getenv(var)]
