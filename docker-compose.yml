@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  payment-bot:
+    build: .
+    container_name: payment_bot
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - CHANNEL_ID=${CHANNEL_ID}
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      - SUBSCRIPTION_PRICE=${SUBSCRIPTION_PRICE}
+      - WEBHOOK_HOST=${WEBHOOK_HOST}
+      - WEBHOOK_PORT=${WEBHOOK_PORT}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "${WEBHOOK_PORT:-8080}:8080"
+    networks:
+      - payment_bot_network
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: payment_bot_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - payment_bot_network
+    command: redis-server --appendonly yes
+
+  # Nginx для reverse proxy (опционально)
+  nginx:
+    image: nginx:alpine
+    container_name: payment_bot_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - payment_bot_network
+    depends_on:
+      - payment-bot
+
+volumes:
+  redis_data:
+
+networks:
+  payment_bot_network:
+    driver: bridge
+
+# Дополнительная конфигурация для продакшена
+# Раскомментируйте для использования PostgreSQL
+#
+# services:
+#   postgres:
+#     image: postgres:14
+#     container_name: payment_bot_postgres
+#     restart: unless-stopped
+#     environment:
+#       POSTGRES_DB: payment_bot
+#       POSTGRES_USER: payment_bot
+#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     networks:
+#       - payment_bot_network
+#
+# volumes:
+#   postgres_data:

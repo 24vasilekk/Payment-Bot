@@ -1,0 +1,33 @@
+# Telegram bot framework
+aiogram==3.4.1
+
+# HTTP client for API requests
+aiohttp==3.9.1
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Database
+aiosqlite==0.19.0
+
+# Async scheduler for background tasks
+apscheduler==3.10.4
+
+# Date/time utilities
+python-dateutil==2.8.2
+
+# JSON Web Tokens (for payment verification)
+PyJWT==2.8.0
+
+# Cryptography for signature verification
+cryptography==41.0.8
+
+# Web server for webhooks
+aiohttp-cors==0.7.0
+
+# Logging
+structlog==23.2.0
+
+# Testing (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
