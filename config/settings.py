@@ -11,9 +11,15 @@ BASE_DIR = Path(__file__).parent.parent
 # Telegram Bot настройки
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 CHANNEL_ID = os.getenv('CHANNEL_ID', '@your_channel')
-ADMIN_IDS = list(map(int, os.getenv('ADMIN_IDS', '').split(','))) if os.getenv('ADMIN_IDS') else []
+ADMIN_IDS = []
+if os.getenv('ADMIN_IDS'):
+    try:
+        ADMIN_IDS = [int(x.strip()) for x in os.getenv('ADMIN_IDS').split(',') if x.strip()]
+    except ValueError:
+        print("❌ Ошибка в ADMIN_IDS. Используйте формат: 123456789,987654321")
+        ADMIN_IDS = []
 
-# ЮKassa настройки
+# ЮKassa настройки  
 YOOKASSA_SHOP_ID = os.getenv('YOOKASSA_SHOP_ID')
 YOOKASSA_SECRET_KEY = os.getenv('YOOKASSA_SECRET_KEY')
 YOOKASSA_BASE_URL = 'https://api.yookassa.ru/v3'
@@ -40,14 +46,16 @@ LOG_DIR = BASE_DIR / 'logs'
 LOG_DIR.mkdir(exist_ok=True)
 DATABASE_PATH.parent.mkdir(exist_ok=True)
 
-# Проверка обязательных переменных (временно только Telegram)
-required_vars = [
-    'TELEGRAM_BOT_TOKEN'
-]
+# Проверка обязательных переменных
+if not TELEGRAM_BOT_TOKEN:
+    raise ValueError("❌ TELEGRAM_BOT_TOKEN не найден в .env файле")
 
-missing_vars = [var for var in required_vars if not os.getenv(var)]
-if missing_vars:
-    raise ValueError(f"Отсутствуют обязательные переменные окружения: {', '.join(missing_vars)}")
+if not ADMIN_IDS:
+    print("⚠️ ADMIN_IDS не настроены - админские функции недоступны")
+
+# Временно отключаем проверку ЮKassa для тестирования
+if not YOOKASSA_SHOP_ID or YOOKASSA_SHOP_ID == 'test_shop_id':
+    print("⚠️ ЮKassa не настроена - используется тестовый режим")
 
 # Дополнительные настройки
 INVITE_LINK_EXPIRE_HOURS = int(os.getenv('INVITE_LINK_EXPIRE_HOURS', '24'))
@@ -57,18 +65,18 @@ MAX_PAYMENT_ATTEMPTS = int(os.getenv('MAX_PAYMENT_ATTEMPTS', '3'))
 # Сообщения
 MESSAGES = {
     'welcome': """
-🔐 Добро пожаловать!
+🔐 <b>Добро пожаловать!</b>
 
 Для доступа к каналу {channel_id} необходимо оформить подписку.
 
-💰 Стоимость: {price} руб/месяц
-⚡ Мгновенный доступ после оплаты
+💰 <b>Стоимость:</b> {price} руб/месяц
+⚡ <b>Мгновенный доступ</b> после оплаты
 
 Используйте /pay для оплаты подписки
     """.strip(),
     
     'payment_success': """
-✅ Оплата прошла успешно!
+✅ <b>Оплата прошла успешно!</b>
 
 📅 Подписка активна до: {subscription_end}
 🔗 Ссылка для входа: {invite_link}
@@ -77,14 +85,14 @@ MESSAGES = {
     """.strip(),
     
     'subscription_expired': """
-❌ Ваша подписка истекла!
+❌ <b>Ваша подписка истекла!</b>
 
 Доступ к каналу приостановлен.
 Используйте /pay для продления подписки.
     """.strip(),
     
     'payment_failed': """
-❌ Оплата не прошла
+❌ <b>Оплата не прошла</b>
 
 Попробуйте еще раз или обратитесь в поддержку.
     """.strip()
