@@ -18,6 +18,10 @@ class YooKassaService:
         self.shop_id = YOOKASSA_SHOP_ID
         self.secret_key = YOOKASSA_SECRET_KEY
         self.base_url = YOOKASSA_BASE_URL
+        self.test_mode = not self.shop_id or self.shop_id == 'test_shop_id'
+        
+        if self.test_mode:
+            logger.warning("ЮKassa работает в тестовом режиме")
         
     def _get_auth(self) -> aiohttp.BasicAuth:
         """Получить авторизацию для запросов"""
@@ -45,6 +49,28 @@ class YooKassaService:
         try:
             payment_id = str(uuid.uuid4())
             
+            # В тестовом режиме возвращаем мок-платеж
+            if self.test_mode:
+                logger.info(f"Создание тестового платежа для пользователя {user_id}")
+                
+                payment = Payment(
+                    payment_id=payment_id,
+                    yookassa_payment_id=f"test_{payment_id}",
+                    user_id=user_id,
+                    amount=amount,
+                    description=description,
+                    status=PaymentStatus.PENDING,
+                    confirmation_url=f"https://test-payment-url.com/pay/{payment_id}",
+                    metadata={"user_id": str(user_id), "bot_payment_id": payment_id},
+                    created_at=datetime.now()
+                )
+                
+                payment_logger.payment_created(user_id, payment_id, amount)
+                logger.info(f"Создан тестовый платеж {payment_id} для пользователя {user_id}")
+                
+                return payment
+            
+            # Реальный режим ЮKassa
             data = {
                 "amount": {
                     "value": f"{amount:.2f}",
@@ -114,6 +140,19 @@ class YooKassaService:
             Словарь с информацией о платеже или None
         """
         try:
+            # В тестовом режиме возвращаем мок-данные
+            if self.test_mode:
+                if yookassa_payment_id.startswith("test_"):
+                    logger.info(f"Получение информации о тестовом платеже {yookassa_payment_id}")
+                    return {
+                        "id": yookassa_payment_id,
+                        "status": "succeeded",  # Всегда успешно в тесте
+                        "amount": {"value": "500.00", "currency": "RUB"},
+                        "metadata": {"test": "true"}
+                    }
+                return None
+            
+            # Реальный запрос к ЮKassa
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.base_url}/payments/{yookassa_payment_id}",
@@ -142,6 +181,11 @@ class YooKassaService:
             True если успешно, False если ошибка
         """
         try:
+            # В тестовом режиме всегда успешно
+            if self.test_mode:
+                logger.info(f"Тестовое подтверждение платежа {yookassa_payment_id}")
+                return True
+            
             data = {}
             if amount:
                 data["amount"] = {
@@ -178,6 +222,11 @@ class YooKassaService:
             True если успешно, False если ошибка
         """
         try:
+            # В тестовом режиме всегда успешно
+            if self.test_mode:
+                logger.info(f"Тестовая отмена платежа {yookassa_payment_id}")
+                return True
+            
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/payments/{yookassa_payment_id}/cancel",
@@ -213,6 +262,12 @@ class YooKassaService:
             ID возврата или None при ошибке
         """
         try:
+            # В тестовом режиме возвращаем тестовый ID
+            if self.test_mode:
+                refund_id = f"test_refund_{uuid.uuid4()}"
+                logger.info(f"Создан тестовый возврат {refund_id} для платежа {yookassa_payment_id}")
+                return refund_id
+            
             data = {
                 "payment_id": yookassa_payment_id,
                 "amount": {

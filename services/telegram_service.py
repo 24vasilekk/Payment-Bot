@@ -3,7 +3,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, List
 from aiogram import Bot
-from aiogram.types import ChatMemberLeft, ChatMemberKicked, InlineKeyboardMarkup
+from aiogram.types import ChatMember, InlineKeyboardMarkup
+from aiogram.enums import ChatMemberStatus
 
 from config.settings import TELEGRAM_BOT_TOKEN, CHANNEL_ID, INVITE_LINK_EXPIRE_HOURS
 
@@ -98,7 +99,7 @@ class TelegramService:
             )
             
             # Пользователь в канале, если он не покинул и не забанен
-            return not isinstance(member, (ChatMemberLeft, ChatMemberKicked))
+            return member.status not in [ChatMemberStatus.LEFT, ChatMemberStatus.KICKED]
             
         except Exception as e:
             logger.error(f"Ошибка проверки пользователя {user_id} в канале: {e}")

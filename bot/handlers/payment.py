@@ -1,10 +1,11 @@
 import logging
+import asyncio
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
-from config.settings import SUBSCRIPTION_PRICE, CHANNEL_ID
+from config.settings import SUBSCRIPTION_PRICE, CHANNEL_ID, YOOKASSA_SHOP_ID
 from services.yookassa_service import yookassa_service
 from services.subscription_service import subscription_service
 from services.notification_service import notification_service
@@ -38,7 +39,10 @@ async def pay_command(message: Message, state: FSMContext):
             )
             return
         
-        # Создаем платеж в YooKassa
+        # Проверяем режим работы
+        test_mode = not YOOKASSA_SHOP_ID or YOOKASSA_SHOP_ID == 'test_shop_id'
+        
+        # Создаем платеж в YooKassa (или тестовый)
         payment = await yookassa_service.create_payment(
             amount=SUBSCRIPTION_PRICE,
             description=f"Подписка на канал {CHANNEL_ID}",
@@ -57,17 +61,26 @@ async def pay_command(message: Message, state: FSMContext):
             # Отправляем сообщение с кнопками оплаты
             keyboard = get_payment_keyboard(payment.payment_id, payment.confirmation_url)
             
+            if test_mode:
+                test_msg = "\n\n🧪 <b>ТЕСТОВЫЙ РЕЖИМ</b>\nЮKassa не настроена. Нажмите 'Проверить оплату' через несколько секунд для имитации успешной оплаты."
+            else:
+                test_msg = ""
+            
             await message.answer(
                 f"💰 <b>Счет для оплаты создан!</b>\n\n"
                 f"💳 Сумма: {SUBSCRIPTION_PRICE} руб\n"
                 f"📅 Срок подписки: 30 дней\n"
                 f"📢 Канал: {CHANNEL_ID}\n\n"
-                f"Нажмите кнопку для оплаты:",
+                f"Нажмите кнопку для оплаты:{test_msg}",
                 reply_markup=keyboard,
                 parse_mode="HTML"
             )
             
-            logger.info(f"Создан платеж {payment.payment_id} для пользователя {user_id}")
+            # В тестовом режиме автоматически "оплачиваем" через 5 секунд
+            if test_mode:
+                asyncio.create_task(auto_complete_test_payment(payment.payment_id, user_id))
+            
+            logger.info(f"Создан платеж {payment.payment_id} для пользователя {user_id} (тест: {test_mode})")
             
         else:
             await message.answer(
@@ -81,6 +94,30 @@ async def pay_command(message: Message, state: FSMContext):
             "❌ Произошла ошибка. Попробуйте позже.",
             reply_markup=get_subscription_keyboard()
         )
+
+
+async def auto_complete_test_payment(payment_id: str, user_id: int):
+    """Автоматически завершить тестовый платеж"""
+    try:
+        # Ждем 5 секунд
+        await asyncio.sleep(5)
+        
+        # Получаем платеж из БД
+        payment = await db.get_payment(payment_id)
+        if not payment or payment.status != PaymentStatus.PENDING:
+            return
+        
+        # Обновляем статус платежа
+        payment.status = PaymentStatus.SUCCEEDED
+        await db.save_payment(payment)
+        
+        # Активируем подписку
+        await subscription_service.activate_subscription(user_id, payment)
+        
+        logger.info(f"Тестовый платеж {payment_id} автоматически завершен")
+        
+    except Exception as e:
+        logger.error(f"Ошибка автозавершения тестового платежа: {e}")
 
 
 @router.callback_query(F.data == "pay_subscription")
@@ -116,7 +153,7 @@ async def check_payment_callback(callback: CallbackQuery, state: FSMContext):
             await callback.answer("❌ Это не ваш платеж", show_alert=True)
             return
         
-        # Проверяем статус в YooKassa
+        # Проверяем статус в YooKassa или базе данных (для тестового режима)
         if payment.yookassa_payment_id:
             yookassa_payment = await yookassa_service.get_payment_info(payment.yookassa_payment_id)
             
@@ -126,7 +163,6 @@ async def check_payment_callback(callback: CallbackQuery, state: FSMContext):
                 if status == "succeeded":
                     # Платеж успешен - активируем подписку
                     payment.status = PaymentStatus.SUCCEEDED
-                    payment.completed_at = payment.updated_at
                     await db.save_payment(payment)
                     
                     # Активируем подписку

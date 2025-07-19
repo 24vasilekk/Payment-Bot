@@ -19,8 +19,8 @@ python-dateutil==2.8.2
 # JSON Web Tokens (for payment verification)
 PyJWT==2.8.0
 
-# Cryptography for signature verification
-cryptography==41.0.8
+# Cryptography for signature verification (latest compatible version)
+cryptography>=41.0.0
 
 # Web server for webhooks
 aiohttp-cors==0.7.0

@@ -62,25 +62,30 @@ async def main():
         register_all_handlers(dp)
         logger.info("✅ Обработчики зарегистрированы")
         
-        # Запуск планировщика задач (только если не в режиме разработки)
-        try:
-            from tasks.scheduler import start_scheduler
-            scheduler = start_scheduler()
-            logger.info("✅ Планировщик задач запущен")
-        except Exception as e:
-            logger.warning(f"⚠️ Планировщик задач не запущен: {e}")
+        # Проверяем режим работы
+        test_mode = not YOOKASSA_SHOP_ID or YOOKASSA_SHOP_ID == 'test_shop_id'
         
-        # Запуск webhook сервера (только если настроен)
-        webhook_task = None
-        try:
-            from webhook.server import start_webhook_server
-            if YOOKASSA_SHOP_ID and YOOKASSA_SHOP_ID != 'test_shop_id':
+        # Запуск планировщика задач (только если не в тестовом режиме)
+        if not test_mode:
+            try:
+                from tasks.scheduler import start_scheduler
+                scheduler = start_scheduler()
+                logger.info("✅ Планировщик задач запущен")
+            except Exception as e:
+                logger.warning(f"⚠️ Планировщик задач не запущен: {e}")
+        else:
+            logger.info("⚠️ Планировщик задач отключен в тестовом режиме")
+        
+        # Webhook сервер запускаем только в продакшене
+        if not test_mode:
+            try:
+                from webhook.server import start_webhook_server
                 webhook_task = asyncio.create_task(start_webhook_server())
                 logger.info("✅ Webhook сервер запущен")
-            else:
-                logger.info("⚠️ Webhook сервер не запущен (ЮKassa не настроена)")
-        except Exception as e:
-            logger.warning(f"⚠️ Webhook сервер не запущен: {e}")
+            except Exception as e:
+                logger.warning(f"⚠️ Webhook сервер не запущен: {e}")
+        else:
+            logger.info("⚠️ Webhook сервер отключен в тестовом режиме")
         
         # Информация о боте
         try:
@@ -100,16 +105,26 @@ async def main():
                     logger.warning("⚠️ Бот не является администратором канала")
             except Exception as e:
                 logger.error(f"❌ Ошибка проверки канала: {e}")
+                logger.warning("⚠️ Убедитесь, что бот добавлен в канал как администратор")
                 
         except Exception as e:
             logger.error(f"❌ Ошибка получения информации о боте: {e}")
             return
+        
+        # Уведомляем о режиме работы
+        if test_mode:
+            logger.info("🧪 ТЕСТОВЫЙ РЕЖИМ: ЮKassa не настроена")
+            logger.info("💡 Платежи будут имитироваться автоматически")
+        else:
+            logger.info("💳 ПРОДАКШЕН РЕЖИМ: ЮKassa настроена")
         
         # Запуск поллинга
         logger.info("🔄 Начало поллинга...")
         logger.info("=" * 50)
         logger.info("🎉 БОТ УСПЕШНО ЗАПУЩЕН!")
         logger.info("📱 Напишите боту /start для тестирования")
+        if test_mode:
+            logger.info("🧪 Режим: ТЕСТОВЫЙ (платежи имитируются)")
         logger.info("=" * 50)
         
         await dp.start_polling(bot, skip_updates=True)
@@ -129,9 +144,6 @@ async def main():
                 logger.info("✅ Планировщик остановлен")
             except:
                 pass
-        if webhook_task and not webhook_task.done():
-            webhook_task.cancel()
-            logger.info("✅ Webhook сервер остановлен")
 
 
 if __name__ == "__main__":

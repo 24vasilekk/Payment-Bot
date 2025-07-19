@@ -4,7 +4,6 @@ from datetime import datetime
 
 from config.settings import CHANNEL_ID, SUBSCRIPTION_PRICE, MESSAGES
 from database.models import User
-from services.telegram_service import telegram_service
 from bot.keyboards.inline import get_subscription_keyboard, get_help_keyboard
 
 logger = logging.getLogger(__name__)
@@ -12,6 +11,11 @@ logger = logging.getLogger(__name__)
 
 class NotificationService:
     """Сервис для отправки уведомлений пользователям"""
+    
+    def _get_telegram_service(self):
+        """Получить telegram_service (ленивая загрузка)"""
+        from services.telegram_service import telegram_service
+        return telegram_service
     
     async def send_welcome_message(self, user: User) -> bool:
         """
@@ -24,6 +28,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             message = MESSAGES['welcome'].format(
                 channel_id=CHANNEL_ID,
                 price=int(SUBSCRIPTION_PRICE)
@@ -53,6 +62,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             if invite_link:
                 message = MESSAGES['payment_success'].format(
                     subscription_end=user.subscription_end.strftime('%d.%m.%Y %H:%M'),
@@ -90,6 +104,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             message = MESSAGES['subscription_expired']
             keyboard = get_subscription_keyboard()
             
@@ -116,6 +135,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             reason_text = {
                 "payment": "оплаты",
                 "manual": "администратором",
@@ -154,6 +178,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             reason_text = {
                 "user_request": "по вашему запросу",
                 "payment_failed": "из-за неуспешной оплаты",
@@ -194,6 +223,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             message = MESSAGES['payment_failed']
             if reason:
                 message += f"\n\nПричина: {reason}"
@@ -222,6 +256,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             if days_left <= 1:
                 emoji = "🚨"
                 urgency = "срочно"
@@ -265,6 +304,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             formatted_message = f"""
 🔔 <b>Уведомление администратора</b>
 
@@ -293,6 +337,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             message = """
 📞 <b>Поддержка</b>
 
@@ -329,6 +378,11 @@ class NotificationService:
             True если отправлено, False если ошибка
         """
         try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
             messages = {
                 "payment": """
 💳 <b>Как оплатить подписку?</b>
@@ -402,6 +456,34 @@ class NotificationService:
             
         except Exception as e:
             logger.error(f"Ошибка отправки справки {user_id}: {e}")
+            return False
+    
+    async def send_message(self, user_id: int, text: str, reply_markup=None) -> bool:
+        """
+        Отправить произвольное сообщение пользователю
+        
+        Args:
+            user_id: ID пользователя
+            text: Текст сообщения
+            reply_markup: Клавиатура
+            
+        Returns:
+            True если отправлено, False если ошибка
+        """
+        try:
+            telegram_service = self._get_telegram_service()
+            if not telegram_service:
+                logger.error("telegram_service не инициализирован")
+                return False
+            
+            return await telegram_service.send_message(
+                user_id,
+                text,
+                reply_markup
+            )
+            
+        except Exception as e:
+            logger.error(f"Ошибка отправки сообщения {user_id}: {e}")
             return False
 
 
